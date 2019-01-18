@@ -33,5 +33,10 @@ namespace restapi
         {
             Timecards.Add(timecard.Identity.Value, timecard);
         }
+
+        public static void Remove(string id)
+        {
+            Timecards.Remove(id);
+        }
     }
 }

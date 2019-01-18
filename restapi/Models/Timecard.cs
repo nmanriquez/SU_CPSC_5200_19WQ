@@ -10,6 +10,7 @@ namespace restapi.Models
     {
         public Timecard(int resource)
         {
+            this.Resource = resource;
             UniqueIdentifier = Guid.NewGuid();
             Identity = new TimecardIdentity();
             Lines = new List<AnnotatedTimecardLine>();
@@ -70,12 +71,15 @@ namespace restapi.Models
                         Reference = $"/timesheets/{Identity.Value}/cancellation"
                     });
 
-                    links.Add(new ActionLink() {
-                        Method = Method.Post,
-                        Type = ContentTypes.Submittal,
-                        Relationship = ActionRelationship.Submit,
-                        Reference = $"/timesheets/{Identity.Value}/submittal"
-                    });
+                    if (this.Lines.Count > 0)
+                    {
+                        links.Add(new ActionLink() {
+                            Method = Method.Post,
+                            Type = ContentTypes.Submittal,
+                            Relationship = ActionRelationship.Submit,
+                            Reference = $"/timesheets/{Identity.Value}/submittal"
+                        });
+                    }
 
                     links.Add(new ActionLink() {
                         Method = Method.Post,
@@ -83,7 +87,13 @@ namespace restapi.Models
                         Relationship = ActionRelationship.RecordLine,
                         Reference = $"/timesheets/{Identity.Value}/lines"
                     });
-                
+
+                    links.Add(new ActionLink() {
+                        Method = Method.Delete,
+                        Type = ContentTypes.Timesheet,
+                        Relationship = ActionRelationship.Remove,
+                        Reference = $"/timesheets/{Identity.Value}"
+                    });
                     break;
 
                 case TimecardStatus.Submitted:
@@ -108,6 +118,12 @@ namespace restapi.Models
                         Reference = $"/timesheets/{Identity.Value}/approval"
                     });
 
+                    links.Add(new ActionLink() {
+                        Method = Method.Post,
+                        Type = ContentTypes.Return,
+                        Relationship = ActionRelationship.Return,
+                        Reference = $"/timesheets/{Identity.Value}/return"
+                    });
                     break;
 
                 case TimecardStatus.Approved:
@@ -115,7 +131,12 @@ namespace restapi.Models
                     break;
 
                 case TimecardStatus.Cancelled:
-                    // terminal state, nothing possible here
+                    links.Add(new ActionLink() {
+                        Method = Method.Delete,
+                        Type = ContentTypes.Timesheet,
+                        Relationship = ActionRelationship.Remove,
+                        Reference = $"/timesheets/{Identity.Value}"
+                    });
                     break;
             }
 
@@ -153,15 +174,79 @@ namespace restapi.Models
                 });
             }
 
+            if (this.Status == TimecardStatus.Rejected)
+            {
+                links.Add(new DocumentLink() {
+                    Method = Method.Get,
+                    Type = ContentTypes.Transitions,
+                    Relationship = DocumentRelationship.Rejection,
+                    Reference = $"/timesheets/{Identity.Value}/rejection"
+                });
+            }
+
+            if (this.Status == TimecardStatus.Approved)
+            {
+                links.Add(new DocumentLink() {
+                    Method = Method.Get,
+                    Type = ContentTypes.Transitions,
+                    Relationship = DocumentRelationship.Approval,
+                    Reference = $"/timesheets/{Identity.Value}/approval"
+                });
+            }
+
+            if (this.Status == TimecardStatus.Cancelled)
+            {
+                links.Add(new DocumentLink() {
+                    Method = Method.Get,
+                    Type = ContentTypes.Transitions,
+                    Relationship = DocumentRelationship.Cancellation,
+                    Reference = $"/timesheets/{Identity.Value}/cancellation"
+                });
+            }
             return links;
         }
 
         public AnnotatedTimecardLine AddLine(TimecardLine timecardLine)
         {
-            var annotatedLine = new AnnotatedTimecardLine(timecardLine);
+            var annotatedLine = new AnnotatedTimecardLine(timecardLine, Identity);
 
             Lines.Add(annotatedLine);
 
+            return annotatedLine;
+        }
+
+        public AnnotatedTimecardLine ReplaceLine(TimecardLine timecardLine, AnnotatedTimecardLine oldLine)
+        {
+            var annotatedLine = new AnnotatedTimecardLine(timecardLine, Identity);
+            annotatedLine.UniqueIdentifier = oldLine.UniqueIdentifier;
+            Lines.Remove(oldLine);
+            Lines.Add(annotatedLine);
+            return annotatedLine;
+        }
+
+        public AnnotatedTimecardLine FindLine(string lineId)
+        {
+            AnnotatedTimecardLine timecardLine = null;
+            foreach (AnnotatedTimecardLine line in Lines)
+            {
+                if (line.UniqueIdentifier.ToString() == lineId)
+                {
+                    timecardLine = line;
+                }
+            }
+            return timecardLine;
+        }
+
+        public AnnotatedTimecardLine UpdateLine(UpdatedTimecardLine timecardLine, AnnotatedTimecardLine annotatedLine)
+        {
+            {
+                int index = Lines.IndexOf(annotatedLine);
+                if( timecardLine.Week != null ) Lines.ElementAt(index).Week = timecardLine.Week.Value;
+                if( timecardLine.Year != null ) Lines.ElementAt(index).Year = timecardLine.Year.Value;
+                if( timecardLine.Day != null) Lines.ElementAt(index).Day = timecardLine.Day.Value;
+                if( timecardLine.Hours != null ) Lines.ElementAt(index).Hours = timecardLine.Hours.Value;
+                if( timecardLine.Project != null ) Lines.ElementAt(index).Project = timecardLine.Project;
+            }
             return annotatedLine;
         }
     }

@@ -10,6 +10,14 @@ namespace restapi.Models
 
         Approve,
 
-        RecordLine
+        Remove,
+
+        Return,
+        
+        RecordLine,
+
+        ReplaceLine,
+
+        UpdateLine
     }
 }

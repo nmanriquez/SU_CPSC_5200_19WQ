@@ -26,4 +26,8 @@ namespace restapi.Models
     public class Approval : Event
     {
     }
+
+    public class Return : Event
+    {
+    }
 }
